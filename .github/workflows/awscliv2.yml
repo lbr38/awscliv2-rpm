@@ -1,13 +1,13 @@
-name: Build awscliv2 RPM package for CentOS7
-
-on:
-  push:
-    branches: [ main ]
+name: Build awscliv2 RPM package
 
 # on:
-#   schedule:
-#     Runs "At 11:00 on every day-of-week from Monday through Friday"
-#     - cron: '*/15 * * * *'
+#   push:
+#     branches: [ main ]
+
+on:
+  schedule:
+    # Runs at 00:00 every day
+    - cron: '0 0 * * *'
 
 jobs:
   build-rpm:
@@ -226,7 +226,7 @@ jobs:
           tag_name: ${{ env.AWSCLI_VERSION }}
           release_name: ${{ env.AWSCLI_VERSION }}
           body: |
-            **awscliv2** version ${{ env.AWSCLI_VERSION }}
+            Automatic RPM build for **awscliv2** version ${{ env.AWSCLI_VERSION }}
           draft: false
           prerelease: false
 
