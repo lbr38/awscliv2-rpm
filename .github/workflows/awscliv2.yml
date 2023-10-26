@@ -1,0 +1,241 @@
+name: Build awscliv2 RPM package for CentOS7
+
+on:
+  push:
+    branches: [ main ]
+
+# on:
+#   schedule:
+#     Runs "At 11:00 on every day-of-week from Monday through Friday"
+#     - cron: '*/15 * * * *'
+
+jobs:
+  build-rpm:
+    runs-on: ubuntu-latest
+    container:
+      image: centos:7
+      options: --user root
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Retrieve latest release version
+        id: latest_release
+        uses: pozetroninc/github-action-get-latest-release@master
+        with:
+          repository: ${{ github.repository }}
+
+      - name: Latest release is ${{ steps.latest_release.outputs.release }}
+        run: echo "Latest release is ${{ steps.latest_release.outputs.release }}"
+
+      - name: Install dependencies
+        run: yum install curl unzip -y
+      
+      - name: Download awscliv2 source
+        run: |
+          cd $HOME
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+
+      - name: Extract awscliv2
+        run: |
+          cd $HOME
+          unzip awscliv2.zip
+
+      - name: Install awscliv2
+        run: |
+          ls -l $HOME
+          ls -l $HOME/aws
+          chmod +x $HOME/aws/install
+          bash $HOME/aws/install
+  
+      - name: Retrieve awscliv2 version
+        run: |
+          VERSION=$(/usr/local/bin/aws --version | awk '{print $1}' | awk -F'/' '{print $2}')
+          echo "Version: $VERSION"
+          echo "AWSCLI_VERSION=$VERSION" >> $GITHUB_ENV
+          echo "$VERSION" > /tmp/version
+
+      # If latest release version is the same as awscliv2 version, then skip build
+      - name: Check if latest release version is the same as actual awscliv2 version
+        run: |
+          if [ "${{ steps.latest_release.outputs.release }}" == "${{ env.AWSCLI_VERSION }}" ]; then
+            echo "Latest release version is the same as awscliv2 version, skip build"
+            exit 1
+          fi
+
+      - name: Install build packages
+        run: yum install rpmdevtools rpmlint curl unzip -y
+
+      - name: Setup build environment
+        run: |
+          mkdir -p $HOME/rpmbuild/BUILD
+          mkdir -p $HOME/rpmbuild/BUILDROOT
+          mkdir -p $HOME/rpmbuild/RPMS
+          mkdir -p $HOME/rpmbuild/SOURCES
+          mkdir -p $HOME/rpmbuild/SPECS
+
+      - name: Create awscliv2 spec file
+        run: |
+          cd $HOME
+          cat << EOF > rpmbuild/SPECS/awscliv2.spec
+          Name:           awscliv2
+          Version:        $AWSCLI_VERSION
+          Release:        1
+          Summary:        AWS CLI version 2
+          
+          BuildArch:      x86_64
+          License:        Apache License 2.0
+          URL:            https://docs.aws.amazon.com/cli/
+          
+          %description
+          The AWS Command Line Interface (AWS CLI) is an open
+          source tool that enables you to interact with AWS
+          services using commands in your command-line shell.
+          
+          %install
+          install -m 0755 -d %{buildroot}/usr/local/
+          install -m 0555 -d %{buildroot}/usr/bin/
+          cp -r /usr/local/aws-cli %{buildroot}/usr/local/aws-cli
+
+          %post
+          ln -s /usr/local/aws-cli/v2/current/bin/aws /usr/bin/aws
+          ln -s /usr/local/aws-cli/v2/current/bin/aws_completer /usr/bin/aws_completer
+
+          %check
+          %{buildroot}/usr/local/aws-cli/v2/current/bin/aws --version
+          
+          %files
+          /usr/local/aws-cli
+
+          EOF
+
+      - name: Build RPM package
+        run: |
+          cd $HOME/rpmbuild/SPECS/
+          rpmbuild --target x86_64 -bb --quiet awscliv2.spec
+        
+      - name: Move builded package
+        run: |
+          cd $HOME/rpmbuild/RPMS/x86_64/
+          PACKAGE=$(ls -A1 *.rpm)
+          echo "PACKAGE=${PACKAGE}" >> $GITHUB_ENV
+          mv "$PACKAGE" "/tmp/$PACKAGE"
+
+      - name: Upload version as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: version
+          path: /tmp/version
+          retention-days: 1
+        
+      - name: Upload RPM as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ env.PACKAGE }}
+          path: /tmp/${{ env.PACKAGE }}
+          retention-days: 1
+
+  #
+  # Test on CentOS7
+  #
+  test-on-centos7:
+    needs:
+      - build-rpm
+    runs-on: ubuntu-latest
+    container:
+      image: centos:7
+      options: --user root
+    steps:   
+      - name: Retrieve awscliv2 rpm package
+        uses: actions/download-artifact@v3
+        with:
+          path: ~/assets
+
+      - name: Install awscliv2
+        run: yum install ~/assets/*/*.rpm -y
+
+  #
+  # Test on AlmaLinux 8
+  #
+  test-on-alma8:
+    needs:
+      - build-rpm
+    runs-on: ubuntu-latest
+    container:
+      image: almalinux:8
+      options: --user root
+    steps:   
+      - name: Retrieve awscliv2 rpm package
+        uses: actions/download-artifact@v3
+        with:
+          path: ~/assets
+
+      - name: Install awscliv2
+        run: yum install ~/assets/*/*.rpm -y
+
+  #
+  # Test on AlmaLinux 9
+  #
+  test-on-alma9:
+    needs:
+      - build-rpm
+    runs-on: ubuntu-latest
+    container:
+      image: almalinux:9
+      options: --user root
+    steps:   
+      - name: Retrieve awscliv2 rpm package
+        uses: actions/download-artifact@v3
+        with:
+          path: ~/assets
+
+      - name: Install awscliv2
+        run: yum install ~/assets/*/*.rpm -y
+
+  #
+  # Create release
+  #
+  release:
+    needs:
+      - build-rpm
+      - test-on-centos7
+      - test-on-alma8
+      - test-on-alma9
+    runs-on: ubuntu-latest
+    steps:
+      # Download builded packages artifacts
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: ~/assets
+
+      # Move all rpm packages to rpm folder and retrieve awscliv2 version
+      - name: Retrieve awscliv2 version from artifact
+        run: |
+          mkdir -p ~/assets/rpm
+          mv ~/assets/*/*.rpm ~/assets/rpm/
+          VERSION=$(cat ~/assets/version/version)
+          echo "AWSCLI_VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.AWSCLI_VERSION }}
+          release_name: ${{ env.AWSCLI_VERSION }}
+          body: |
+            **awscliv2** version ${{ env.AWSCLI_VERSION }}
+          draft: false
+          prerelease: false
+
+      # Upload packages to release
+      - name: Upload packages
+        id: upload-release-assets
+        uses: dwenegar/upload-release-assets@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          release_id: ${{ steps.create_release.outputs.id }}
+          assets_path: ~/assets/rpm
