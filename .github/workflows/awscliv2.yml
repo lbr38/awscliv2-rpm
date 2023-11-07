@@ -86,6 +86,10 @@ jobs:
           BuildArch:      x86_64
           License:        Apache License 2.0
           URL:            https://docs.aws.amazon.com/cli/
+
+          Requires: glibc
+          Requires: groff-base
+          Requires: less
           
           %description
           The AWS Command Line Interface (AWS CLI) is an open
