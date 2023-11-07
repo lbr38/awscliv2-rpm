@@ -86,6 +86,10 @@ jobs:
           BuildArch:      x86_64
           License:        Apache License 2.0
           URL:            https://docs.aws.amazon.com/cli/
+
+          Requires: glibc
+          Requires: groff-base
+          Requires: less
           
           %description
           The AWS Command Line Interface (AWS CLI) is an open
@@ -239,3 +243,13 @@ jobs:
         with:
           release_id: ${{ steps.create_release.outputs.id }}
           assets_path: ~/assets/rpm
+
+      - name: Upload package to repository
+        run: |
+          cd ~/assets/rpm/
+          PACKAGE=$(ls -A1 *.rpm)
+          curl --fail -X POST -H "Authorization: Bearer ${{ secrets.REPOSITORY_TOKEN }}" -F "files=@${PACKAGE}" https://packages.bespin.ovh/api/v2/snapshot/30/upload
+
+      - name: Rebuild repository metadata
+        run: |
+          curl --fail -X PUT -H "Authorization: Bearer ${{ secrets.REPOSITORY_TOKEN }}" -d '{"gpgSign":"yes"}' https://packages.bespin.ovh/api/v2/snapshot/30/rebuild
