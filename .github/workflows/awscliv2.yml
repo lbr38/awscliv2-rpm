@@ -13,9 +13,12 @@ jobs:
   build-rpm:
     runs-on: ubuntu-latest
     container:
-      image: centos:7
+      image: centos:8
       options: --user root
     steps:
+      - name: Install dependencies
+        run: yum install curl unzip glibc-static -y
+
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -28,9 +31,6 @@ jobs:
       - name: Latest release is ${{ steps.latest_release.outputs.release }}
         run: echo "Latest release is ${{ steps.latest_release.outputs.release }}"
 
-      - name: Install dependencies
-        run: yum install curl unzip -y
-      
       - name: Download awscliv2 source
         run: |
           cd $HOME
@@ -252,4 +252,4 @@ jobs:
 
       - name: Rebuild repository metadata
         run: |
-          curl --fail -X PUT -H "Authorization: Bearer ${{ secrets.REPOSITORY_TOKEN }}" -d '{"gpgSign":"yes"}' https://packages.bespin.ovh/api/v2/snapshot/30/rebuild
+          curl --fail -X PUT -H "Authorization: Bearer ${{ secrets.REPOSITORY_TOKEN }}" -d '{"gpgSign":"true"}' https://packages.bespin.ovh/api/v2/snapshot/30/rebuild
