@@ -13,9 +13,39 @@ jobs:
   build-rpm:
     runs-on: ubuntu-latest
     container:
-      image: centos:7
+      image: centos:8
       options: --user root
+    env:
+      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
+      - name: Install CentOS8 archive repositories
+        run: |
+          rm /etc/yum.repos.d/*
+
+          cat > /etc/yum.repos.d/CentOS-Linux-BaseOS.repo << EOF
+          [baseos]
+          name=CentOS Linux \$releasever - BaseOS
+          baseurl=http://vault.centos.org/\$contentdir/\$releasever/BaseOS/\$basearch/os/
+          gpgcheck=1
+          enabled=1
+          gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
+          EOF
+
+          cat > /etc/yum.repos.d/CentOS-Linux-AppStream.repo << EOF
+          [appstream]
+          name=CentOS Linux \$releasever - AppStream
+          baseurl=http://vault.centos.org/\$contentdir/\$releasever/AppStream/\$basearch/os/
+          gpgcheck=1
+          enabled=1
+          gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
+          EOF
+          
+          dnf clean all
+
+      - name: Install dependencies
+        run: dnf install curl unzip -y
+
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -28,9 +58,6 @@ jobs:
       - name: Latest release is ${{ steps.latest_release.outputs.release }}
         run: echo "Latest release is ${{ steps.latest_release.outputs.release }}"
 
-      - name: Install dependencies
-        run: yum install curl unzip -y
-      
       - name: Download awscliv2 source
         run: |
           cd $HOME
@@ -64,7 +91,7 @@ jobs:
           fi
 
       - name: Install build packages
-        run: yum install rpmdevtools rpmlint curl unzip -y
+        run: dnf install rpmdevtools rpmlint curl unzip -y
 
       - name: Setup build environment
         run: |
@@ -140,25 +167,6 @@ jobs:
           retention-days: 1
 
   #
-  # Test on CentOS7
-  #
-  test-on-centos7:
-    needs:
-      - build-rpm
-    runs-on: ubuntu-latest
-    container:
-      image: centos:7
-      options: --user root
-    steps:   
-      - name: Retrieve awscliv2 rpm package
-        uses: actions/download-artifact@v3
-        with:
-          path: ~/assets
-
-      - name: Install awscliv2
-        run: yum install ~/assets/*/*.rpm -y
-
-  #
   # Test on AlmaLinux 8
   #
   test-on-alma8:
@@ -175,7 +183,7 @@ jobs:
           path: ~/assets
 
       - name: Install awscliv2
-        run: yum install ~/assets/*/*.rpm -y
+        run: dnf install ~/assets/*/*.rpm -y
 
   #
   # Test on AlmaLinux 9
@@ -194,7 +202,7 @@ jobs:
           path: ~/assets
 
       - name: Install awscliv2
-        run: yum install ~/assets/*/*.rpm -y
+        run: dnf install ~/assets/*/*.rpm -y
 
   #
   # Create release
@@ -202,7 +210,6 @@ jobs:
   release:
     needs:
       - build-rpm
-      - test-on-centos7
       - test-on-alma8
       - test-on-alma9
     runs-on: ubuntu-latest
@@ -252,4 +259,4 @@ jobs:
 
       - name: Rebuild repository metadata
         run: |
-          curl --fail -X PUT -H "Authorization: Bearer ${{ secrets.REPOSITORY_TOKEN }}" -d '{"gpgSign":"yes"}' https://packages.bespin.ovh/api/v2/snapshot/30/rebuild
+          curl --fail -X PUT -H "Authorization: Bearer ${{ secrets.REPOSITORY_TOKEN }}" -d '{"gpgSign":"true"}' https://packages.bespin.ovh/api/v2/snapshot/30/rebuild
