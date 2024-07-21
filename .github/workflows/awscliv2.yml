@@ -15,7 +15,6 @@ jobs:
     container:
       image: centos:7
       options: --user root
-      env:
 
     steps:
       - name: Install CentOS7 archive repositories
