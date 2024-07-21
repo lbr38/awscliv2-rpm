@@ -210,7 +210,6 @@ jobs:
   release:
     needs:
       - build-rpm
-      - test-on-centos7
       - test-on-alma8
       - test-on-alma9
     runs-on: ubuntu-latest
