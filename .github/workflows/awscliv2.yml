@@ -44,7 +44,7 @@ jobs:
           dnf clean all
 
       - name: Install dependencies
-        run: dnf install curl unzip glibc-static -y
+        run: dnf install curl unzip -y
 
       - name: Checkout code
         uses: actions/checkout@v3
