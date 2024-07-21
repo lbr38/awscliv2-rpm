@@ -4,10 +4,10 @@ on:
   push:
     branches: [ main ]
 
-on:
-  schedule:
-    # Runs at 00:00 every day
-    - cron: '0 0 * * *'
+# on:
+#   schedule:
+#     # Runs at 00:00 every day
+#     - cron: '0 0 * * *'
 
 jobs:
   build-rpm:
@@ -15,11 +15,11 @@ jobs:
     container:
       image: centos:7
       options: --user root
-
     steps:
       - name: Install CentOS7 archive repositories
         run: |
           rm /etc/yum.repos.d/*
+
           echo "[base]
           name=CentOS-7 - Base
           baseurl=https://vault.centos.org/7.9.2009/os/x86_64/
