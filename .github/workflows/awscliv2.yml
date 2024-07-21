@@ -13,38 +13,38 @@ jobs:
   build-rpm:
     runs-on: ubuntu-latest
     container:
-      image: centos:7
+      image: centos:8
       options: --user root
     env:
       ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
       ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
-      - name: Install CentOS7 archive repositories
+      - name: Install CentOS8 archive repositories
         run: |
           rm /etc/yum.repos.d/*
 
-          echo "[base]
-          name=CentOS-7 - Base
-          baseurl=https://vault.centos.org/7.9.2009/os/x86_64/
+          cat > /etc/yum.repos.d/CentOS-Linux-BaseOS.repo << EOF
+          [baseos]
+          name=CentOS Linux \$releasever - BaseOS
+          baseurl=http://vault.centos.org/\$contentdir/\$releasever/BaseOS/\$basearch/os/
           gpgcheck=1
-          gpgkey=https://vault.centos.org/RPM-GPG-KEY-CentOS-7" > /etc/yum.repos.d/base.repo
+          enabled=1
+          gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
+          EOF
 
-          echo "[updates]
-          name=CentOS-7 - Updates
-          baseurl=https://vault.centos.org/7.9.2009/updates/x86_64/
+          cat > /etc/yum.repos.d/CentOS-Linux-AppStream.repo << EOF
+          [appstream]
+          name=CentOS Linux \$releasever - AppStream
+          baseurl=http://vault.centos.org/\$contentdir/\$releasever/AppStream/\$basearch/os/
           gpgcheck=1
-          gpgkey=https://vault.centos.org/RPM-GPG-KEY-CentOS-7" > /etc/yum.repos.d/updates.repo
-
-          echo "[extras]
-          name=CentOS-7 - Extras
-          baseurl=https://vault.centos.org/7.9.2009/extras/x86_64/
-          gpgcheck=1
-          gpgkey=https://vault.centos.org/RPM-GPG-KEY-CentOS-7" > /etc/yum.repos.d/extras.repo
+          enabled=1
+          gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-centosofficial
+          EOF
           
-          yum clean all
+          dnf clean all
 
       - name: Install dependencies
-        run: yum install curl unzip glibc-static -y
+        run: dnf install curl unzip glibc-static -y
 
       - name: Checkout code
         uses: actions/checkout@v3
