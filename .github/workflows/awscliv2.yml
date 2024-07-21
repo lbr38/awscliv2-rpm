@@ -91,7 +91,7 @@ jobs:
           fi
 
       - name: Install build packages
-        run: yum install rpmdevtools rpmlint curl unzip -y
+        run: dnf install rpmdevtools rpmlint curl unzip -y
 
       - name: Setup build environment
         run: |
@@ -167,25 +167,6 @@ jobs:
           retention-days: 1
 
   #
-  # Test on CentOS7
-  #
-  test-on-centos7:
-    needs:
-      - build-rpm
-    runs-on: ubuntu-latest
-    container:
-      image: centos:7
-      options: --user root
-    steps:   
-      - name: Retrieve awscliv2 rpm package
-        uses: actions/download-artifact@v3
-        with:
-          path: ~/assets
-
-      - name: Install awscliv2
-        run: yum install ~/assets/*/*.rpm -y
-
-  #
   # Test on AlmaLinux 8
   #
   test-on-alma8:
@@ -202,7 +183,7 @@ jobs:
           path: ~/assets
 
       - name: Install awscliv2
-        run: yum install ~/assets/*/*.rpm -y
+        run: dnf install ~/assets/*/*.rpm -y
 
   #
   # Test on AlmaLinux 9
@@ -221,7 +202,7 @@ jobs:
           path: ~/assets
 
       - name: Install awscliv2
-        run: yum install ~/assets/*/*.rpm -y
+        run: dnf install ~/assets/*/*.rpm -y
 
   #
   # Create release
